@@ -1,6 +1,6 @@
 /*
  * American Economy Task
- * Standalone Phaser 3 scene for four experimental conditions (version 7).
+ * Standalone Phaser 3 scene for four experimental conditions (version 8).
  *
  * Required URL parameters supplied by Qualtrics:
  *   gameId=...
@@ -28,7 +28,7 @@
 
 const DESIGN_WIDTH = 1280;
 const DESIGN_HEIGHT = 720;
-const NEED_PER_PERSON = 15;
+const NEED_PER_PERSON = 12;
 const DOLLARS_PER_UNIT = 1000;
 
 const CLOSED_POOL_TEXT =
@@ -52,49 +52,49 @@ const CONDITION_CONFIGS = Object.freeze({
     insufficiency: Object.freeze({
         code: 'insufficiency',
         initialAllocation: Object.freeze([
-            1, 2, 4, 5, 6, 8, 9, 13, 17, 35
+            1, 2, 3, 4, 5, 6, 7, 9, 14, 29
         ]),
-        totalUnits: 100,
+        totalUnits: 80,
         manipulationCorrectAnswer: 'no',
-        equalUnitsPerPerson: 10,
+        equalUnitsPerPerson: 8,
         equalPeopleMeetingNeed: 0,
         partialMaximumPeople: 5,
         availableIncomeText:
-            'There are 100 blocks divided among these 10 people.',
+            'There are 80 blocks divided among these 10 people.',
         boardAvailableText:
-            '100 blocks available'
+            '80 blocks available'
     }),
 
     sufficiency: Object.freeze({
         code: 'sufficiency',
         initialAllocation: Object.freeze([
-            1, 4, 5, 7, 10, 12, 14, 19, 26, 52
+            1, 3, 4, 6, 8, 9, 11, 16, 20, 42
         ]),
-        totalUnits: 150,
+        totalUnits: 120,
         manipulationCorrectAnswer: 'yes',
-        equalUnitsPerPerson: 15,
+        equalUnitsPerPerson: 12,
         equalPeopleMeetingNeed: 10,
         partialMaximumPeople: 10,
         availableIncomeText:
-            'There are 150 blocks divided among these 10 people.',
+            'There are 120 blocks divided among these 10 people.',
         boardAvailableText:
-            '150 blocks available'
+            '120 blocks available'
     }),
 
     abundance: Object.freeze({
         code: 'abundance',
         initialAllocation: Object.freeze([
-            2, 4, 7, 10, 13, 16, 19, 25, 34, 70
+            2, 3, 6, 8, 10, 12, 15, 20, 28, 56
         ]),
-        totalUnits: 200,
+        totalUnits: 160,
         manipulationCorrectAnswer: 'yes',
-        equalUnitsPerPerson: 20,
+        equalUnitsPerPerson: 16,
         equalPeopleMeetingNeed: 10,
         partialMaximumPeople: 10,
         availableIncomeText:
-            'There are 200 blocks divided among these 10 people.',
+            'There are 160 blocks divided among these 10 people.',
         boardAvailableText:
-            '200 blocks available'
+            '160 blocks available'
     }),
 
     actual: Object.freeze({
@@ -175,13 +175,13 @@ const REDISTRIBUTION_QUESTIONS = Object.freeze([
     {
         code: 'partial_redistribution',
         prompt:
-            'Suppose these were the only two options for the American economy shown in this task: redistribute income above the basic-needs line so the greatest possible number of people have at least $15,000, or let each person keep their starting income. Which should the government do?',
+            'Suppose these were the only two options for the American economy shown in this task: redistribute income above the basic-needs line so the greatest possible number of people have at least $12,000, or let each person keep their starting income. Which should the government do?',
         options: [
             {
                 code: 'partial',
                 title: 'Redistribute to meet basic needs',
                 detail:
-                    'Redistribute income held above the basic-needs line so that the greatest possible number of people have at least $15,000.'
+                    'Redistribute income held above the basic-needs line so that the greatest possible number of people have at least $12,000.'
             },
             {
                 code: 'keep',
@@ -484,7 +484,7 @@ export default class Start extends Phaser.Scene
             qualtricsId,
             condition: this.conditionName,
             gameVersion:
-                'national_individuals_fourarm_v1',
+                'national_individuals_fourarm_12k_v2',
 
             initialAllocation: [
                 ...this.initialAllocation
@@ -1115,7 +1115,7 @@ showTaskInstructions ()
         this.addScreenText(
             640,
             195,
-            'For this task, assume that existing federal and state assistance programs remain in place. Even with those programs, one person still needs at least $15,000 a year in income to meet basic needs.',
+            'For this task, assume that existing federal and state assistance programs remain in place. Even with those programs, one person still needs at least $12,000 a year ($1,000 a month) in income to meet basic needs.',
             27,
             COLORS.ink,
             930,
@@ -1124,7 +1124,7 @@ showTaskInstructions ()
 
 
         this.drawPersonGlyph(640, 310, 1.35);
-        this.addScreenText(640, 400, '$15,000', 28, COLORS.ink, 300, 'center').setOrigin(0.5);
+        this.addScreenText(640, 400, '$12,000', 28, COLORS.ink, 300, 'center').setOrigin(0.5);
 
         const blockHeight = 9;
         const blockGap = 2;
@@ -1147,7 +1147,7 @@ showTaskInstructions ()
         this.addPanel(640, 360, 1080, 620);
 
         this.addScreenText(
-            640, 165, '$15,000 or more', 29,
+            640, 165, '$12,000 or more', 29,
             COLORS.ink, 900, 'center'
         ).setOrigin(0.5).setFontStyle('bold');
 
@@ -1162,7 +1162,7 @@ showTaskInstructions ()
         );
 
         this.addScreenText(
-            640, 455, 'Below $15,000', 29,
+            640, 455, 'Below $12,000', 29,
             COLORS.ink, 900, 'center'
         ).setOrigin(0.5).setFontStyle('bold');
 
@@ -1194,8 +1194,8 @@ showTaskInstructions ()
         this.enterScreen('basic_needs_blocks');
         this.clearScreen();
         this.addPanel(640, 360, 1080, 620);
-        this.addScreenText(640, 150, 'So, 15 blocks = $15,000', 30, COLORS.ink, 860, 'center').setOrigin(0.5);
-        this.drawBlockStack(640, 445, 15, 140, 12, 5);
+        this.addScreenText(640, 150, 'So, 12 blocks = $12,000', 30, COLORS.ink, 860, 'center').setOrigin(0.5);
+        this.drawBlockStack(640, 445, 12, 140, 12, 5);
         this.addButton(640, 635, 190, 54, 'Next', () => {
             this.showBasicNeedsThreshold();
         });
@@ -1211,7 +1211,7 @@ showBasicNeedsComprehensionCheck ()
     this.addScreenText(
         640,
         175,
-        'How many blocks represent $15,000?',
+        'How many blocks represent $12,000?',
         29,
         COLORS.ink,
         880,
@@ -1220,7 +1220,7 @@ showBasicNeedsComprehensionCheck ()
 
     const choices = [
         '10 blocks',
-        '15 blocks',
+        '12 blocks',
         '20 blocks'
     ];
 
@@ -1235,7 +1235,7 @@ showBasicNeedsComprehensionCheck ()
             choice,
             () => {
                 const correct =
-                    choice === '15 blocks';
+                    choice === '12 blocks';
 
                 this.gameData.comprehensionCheckChoice = choice;
                 this.gameData.comprehensionCheckPassed = correct;
@@ -1262,7 +1262,7 @@ showBasicNeedsComprehensionCheck ()
         this.addInstructionReview('', 150, () => this.showWelcomeScreen());
     }
 
-// Shown after selecting 15 blocks
+// Shown after selecting 12 blocks
 showCorrectBasicNeedsFeedback ()
 {
     this.enterScreen('basic_needs_check_correct');
@@ -1282,7 +1282,7 @@ showCorrectBasicNeedsFeedback ()
     this.addScreenText(
         640,
         220,
-        '15 blocks represent $15,000.',
+        '12 blocks represent $12,000.',
         27,
         COLORS.ink,
         760,
@@ -1292,7 +1292,7 @@ showCorrectBasicNeedsFeedback ()
     this.drawBlockStack(
         640,
         450,
-        15,
+        12,
         110,
         9,
         4
@@ -1301,7 +1301,7 @@ showCorrectBasicNeedsFeedback ()
     this.addScreenText(
         640,
         505,
-        '$15,000 = 15 blocks',
+        '$12,000 = 12 blocks',
         24,
         COLORS.ink,
         600,
@@ -1350,7 +1350,7 @@ showIncorrectBasicNeedsFeedback (selectedChoice)
     this.addScreenText(
         640,
         250,
-        'The correct answer is 15 blocks.',
+        'The correct answer is 12 blocks.',
         28,
         COLORS.ink,
         760,
@@ -1360,7 +1360,7 @@ showIncorrectBasicNeedsFeedback (selectedChoice)
     this.drawBlockStack(
         640,
         465,
-        15,
+        12,
         110,
         9,
         4
@@ -1369,7 +1369,7 @@ showIncorrectBasicNeedsFeedback (selectedChoice)
     this.addScreenText(
         640,
         520,
-        '$15,000 = 15 blocks',
+        '$12,000 = 12 blocks',
         24,
         COLORS.ink,
         600,
@@ -1397,7 +1397,7 @@ showAboveAndBelowThreshold ()
     this.addScreenText(
         640,
         95,
-        'Some people have more than $15,000 a year; others have less.',
+        'Some people have more than $12,000 a year; others have less.',
         25,
         COLORS.ink,
         980,
@@ -1407,7 +1407,7 @@ showAboveAndBelowThreshold ()
     this.addScreenText(
         640,
         127,
-        'The purple line marks the $15,000 basic-needs level.',
+        'The purple line marks the $12,000 basic-needs level.',
         25,
         COLORS.ink,
         920,
@@ -1423,7 +1423,7 @@ showAboveAndBelowThreshold ()
         'Annual income',
         1,
         '$20,000',
-        '$20,000 is more than $15,000.'
+        '$20,000 is more than $12,000.'
     );
 
     this.drawExampleIncomeCard(
@@ -1435,7 +1435,7 @@ showAboveAndBelowThreshold ()
         'Annual income',
         1,
         '$10,000',
-        '$10,000 is less than $15,000.'
+        '$10,000 is less than $12,000.'
     );
 
     this.addButton(
@@ -1532,7 +1532,7 @@ showRepresentativePersonExplanation ()
         this.addScreenText(
             640,
             575,
-            'Their yearly income falls below the $15,000 basic-needs line.',
+            'Their yearly income falls below the $12,000 basic-needs line.',
             27,
             COLORS.ink,
             880,
@@ -1573,7 +1573,7 @@ showRepresentativePersonExplanation ()
         this.addScreenText(
             640,
             570,
-            'Their yearly income exceeds the $15,000 basic-needs line.',
+            'Their yearly income exceeds the $12,000 basic-needs line.',
             27,
             COLORS.ink,
             900,
@@ -1686,7 +1686,7 @@ showRepresentativePersonExplanation ()
     this.addScreenText(
         640,
         95,
-        'Each person needs 15 blocks to reach the $15,000 basic-needs line.',
+        'Each person needs 12 blocks to reach the $12,000 basic-needs line.',
         29,
         COLORS.ink,
         1000,
@@ -1715,7 +1715,7 @@ showRepresentativePersonExplanation ()
         this.addScreenText(
             x,
             465,
-            '15 blocks',
+            '12 blocks',
             16,
             COLORS.ink,
             85,
@@ -1726,7 +1726,7 @@ showRepresentativePersonExplanation ()
     this.addScreenText(
         640,
         520,
-        '10 people × 15 blocks each = 150 blocks',
+        '10 people × 12 blocks each = 120 blocks',
         31,
         COLORS.ink,
         950,
@@ -1736,7 +1736,7 @@ showRepresentativePersonExplanation ()
     this.addScreenText(
         640,
         570,
-        'There must be at least 150 blocks in total for all 10 people to meet their basic needs.',
+        'There must be at least 120 blocks in total for all 10 people to meet their basic needs.',
         23,
         COLORS.ink,
         960,
@@ -1837,7 +1837,7 @@ showAvailableIncomeDistribution ()
         this.addScreenText(
             640,
             245,
-            'If the total income shown were redistributed, could all 10 people have at least $15,000 each?',
+            'If the total income shown were redistributed, could all 10 people have at least $12,000 each?',
             27,
             COLORS.ink,
             900,
@@ -2118,7 +2118,7 @@ this.showTaskTransition('debrief', 'About this task', [
         const boardTitles = {
             free: 'Arrange the blocks in the way you think is best for America',
             equal: 'Divide the income equally among all 10 people',
-            partial: 'Use income above $15,000 to help as many people as possible reach $15,000.',
+            partial: 'Use income above $12,000 to help as many people as possible reach $12,000.',
             self_interest:
                 'Now arrange the blocks in the way you think is best for America'
         };
@@ -2313,7 +2313,7 @@ this.gameData.selfInterestCondition === 'reveal'
         this.addScreenText(
             22,
             thresholdY - 22,
-            '$15,000',
+            '$12,000',
             14,
             '#6c3483',
             90,
@@ -2336,7 +2336,7 @@ else if (mode === 'partial')
 {
     selectionMessage =
         isAutomaticPartialAllocation
-            ? 'Income above $15,000 has now been redistributed.'
+            ? 'Income above $12,000 has now been redistributed.'
             : 'Select “Redistribute to meet basic needs” to see the result.';
 }
 else
@@ -2348,7 +2348,7 @@ else
         this.addScreenText(
             45,
             578,
-            `${meetingNeed} of 10 people have at least $15,000`,
+            `${meetingNeed} of 10 people have at least $12,000`,
             21,
             COLORS.ink,
             470,
@@ -2805,7 +2805,7 @@ else if (mode === 'self_interest')
         this.addScreenText(
             640,
             270,
-            `${meetingNeed} of 10 people have at least $15,000.`,
+            `${meetingNeed} of 10 people have at least $12,000.`,
             29,
             COLORS.ink,
             820,
@@ -2951,7 +2951,7 @@ else if (mode === 'self_interest')
         this.addScreenText(
             640,
             160,
-            'After dividing the income equally, how many of the 10 people had at least $15,000?',
+            'After dividing the income equally, how many of the 10 people had at least $12,000?',
             29,
             COLORS.ink,
             900,
@@ -3258,7 +3258,7 @@ buildAutomaticPartialAllocation ()
         const options = [
             {code: 'noRedistribution', label: 'Each person should keep their starting income.'},
             {code: 'equalRedistribution', label: 'Income should be divided equally among all people.'},
-            {code: 'partialRedistribution', label: 'Income above the basic-needs line should be redistributed so that the greatest possible number of people have at least $15,000.'}
+            {code: 'partialRedistribution', label: 'Income above the basic-needs line should be redistributed so that the greatest possible number of people have at least $12,000.'}
         ];
         const selected = {noRedistribution: false, equalRedistribution: false, partialRedistribution: false};
         const next = this.addButton(640, 680, 180, 48, 'Next', () => {
@@ -4136,7 +4136,7 @@ this.recordAction({
         this.addScreenText(
             20,
             thresholdY - 22,
-            '$15,000',
+            '$12,000',
             14,
             '#6c3483',
             90,
@@ -4270,7 +4270,7 @@ this.recordAction({
         this.addScreenText(
             centerX + width / 2 - 18,
             thresholdY - 20,
-            '$15,000',
+            '$12,000',
             13,
             '#6c3483',
             80,
