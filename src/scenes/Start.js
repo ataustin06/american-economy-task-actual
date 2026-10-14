@@ -5,16 +5,15 @@
  * Required URL parameters supplied by Qualtrics:
  *   gameId=...
  *   qualtricsId=... (responseId and ResponseID are also accepted)
- *   condition=insufficiency|sufficiency|abundance|actual (optional; must match this site)
+ *   condition=insufficiency|sufficiency|abundance|actual
  *
  * Optional URL parameters:
  *   respondentDecile=1..10 (based on household income divided by household size;
- *   missing/invalid forces neutral control)
+ *   missing/invalid is recorded for analysis)
  *   incomeControlFallback=0|1
  *   incomeRoutingReason=...
  *   saveUrl=https://...
  *   parentOrigin=https://your-qualtrics-domain.example
- *   selfInterestCondition=reveal|neutral
  *
  * Example Qualtrics link:
  * https://YOUR-GAME-URL/?gameId=${e://Field/gameId}
@@ -45,14 +44,13 @@ const TEST_DEFAULTS = Object.freeze({
     gameId: 'test_game_001',
     qualtricsId: 'test_response_001',
     respondentDecile: 5,
-    condition: 'actual',
-    selfInterestCondition: ''
+    condition: 'actual'
 });
 const CONDITION_CONFIGS = Object.freeze({
     insufficiency: Object.freeze({
         code: 'insufficiency',
         initialAllocation: Object.freeze([
-            1, 2, 3, 4, 5, 6, 7, 9, 14, 29
+            1, 2, 4, 5, 6, 7, 9, 10, 12, 24
         ]),
         totalUnits: 80,
         manipulationCorrectAnswer: 'no',
@@ -68,7 +66,7 @@ const CONDITION_CONFIGS = Object.freeze({
     sufficiency: Object.freeze({
         code: 'sufficiency',
         initialAllocation: Object.freeze([
-            1, 3, 4, 6, 8, 9, 11, 16, 20, 42
+            2, 4, 6, 7, 8, 10, 12, 15, 20, 36
         ]),
         totalUnits: 120,
         manipulationCorrectAnswer: 'yes',
@@ -84,7 +82,7 @@ const CONDITION_CONFIGS = Object.freeze({
     abundance: Object.freeze({
         code: 'abundance',
         initialAllocation: Object.freeze([
-            2, 3, 6, 8, 10, 12, 15, 20, 28, 56
+            3, 5, 7, 9, 12, 14, 16, 20, 26, 48
         ]),
         totalUnits: 160,
         manipulationCorrectAnswer: 'yes',
@@ -100,17 +98,17 @@ const CONDITION_CONFIGS = Object.freeze({
     actual: Object.freeze({
         code: 'actual',
         initialAllocation: Object.freeze([
-            4, 12, 19, 25, 33, 41, 51, 65, 89, 181
+            8, 15, 21, 26, 31, 38, 46, 56, 73, 136
         ]),
-        totalUnits: 520,
+        totalUnits: 450,
         manipulationCorrectAnswer: 'yes',
-        equalUnitsPerPerson: 52,
+        equalUnitsPerPerson: 45,
         equalPeopleMeetingNeed: 10,
         partialMaximumPeople: 10,
         availableIncomeText:
-            'There are 520 blocks divided among these 10 people.',
+            'There are 450 blocks divided among these 10 people.',
         boardAvailableText:
-            '520 blocks available'
+            '450 blocks available'
     })
 });
 
@@ -141,7 +139,6 @@ const COLORS = Object.freeze({
     resourceBorder: 0x1f6f43,
     resourceSeal: 0xcce8d3,
     resourceSelected: 0xf2994a,
-    respondentDecile: 0x1b6f3a,
     threshold: 0x8e44ad,
     button: 0x17202a,
     buttonLight: 0xe8ecef,
@@ -315,10 +312,10 @@ const ECONOMIC_PRINCIPLES = Object.freeze([
     },
     {
         code: 'paid_leave',
-        prompt: 'Should workers be guaranteed a minimum amount of paid time off, or should paid time off be left to employers to decide?',
+        prompt: 'Should workers be guaranteed a minimum amount of paid leave, or should paid leave be left to employers to decide?',
         options: [
-            { code: 'guaranteed', title: 'Workers should be guaranteed a minimum amount of paid time off.', detail: '' },
-            { code: 'employer_choice', title: 'Paid time off should be left to employers to decide.', detail: '' }
+            { code: 'guaranteed', title: 'Workers should be guaranteed a minimum amount of paid leave.', detail: '' },
+            { code: 'employer_choice', title: 'Paid leave should be left to employers to decide.', detail: '' }
         ]
     },
     {
@@ -350,7 +347,6 @@ export default class Start extends Phaser.Scene
 
         this.conditionName = null;
         this.conditionConfig = null;
-        this.requestedSelfInterestCondition = '';
         this.transferBatchSize = 1;
     }
 
@@ -374,7 +370,9 @@ export default class Start extends Phaser.Scene
 
         const requestedConditionRaw = (
             urlParams.get('condition') ||
-            PUBLISHED_CONDITION
+            (
+                PUBLISHED_CONDITION
+            )
         ).trim().toLowerCase();
 
         const requestedCondition =
@@ -434,15 +432,6 @@ export default class Start extends Phaser.Scene
                 ? suppliedIncomeReason : 'invalid_income_decile')
             : '';
 
-        this.requestedSelfInterestCondition = (
-            urlParams.get('selfInterestCondition') ||
-            (
-                TEST_MODE
-                    ? TEST_DEFAULTS.selfInterestCondition
-                    : ''
-            )
-        ).trim().toLowerCase();
-
         this.initialAllocation =
             this.conditionConfig
                 ? [
@@ -476,8 +465,6 @@ export default class Start extends Phaser.Scene
         this.isDraggingResource = false;
         this.cardBounds = [];
         this.boardFeedbackMessage = '';
-        this.selfInterestEqualApplied = false;
-        this.selfInterestPartialApplied = false;
 
         this.gameData = {
             gameId,
@@ -506,8 +493,8 @@ export default class Start extends Phaser.Scene
             respondentDecile,
             incomeControlFallback,
             incomeRoutingReason,
-            selfInterestConditionIssue: incomeControlFallback ? 'missing_or_invalid_income_decile' : null,
-            selfInterestCondition: incomeControlFallback ? 'neutral' : null,
+            selfInterestConditionIssue: null,
+            selfInterestCondition: null,
             respondentDecileRevealed: false,
 
             gameStartTime:
@@ -612,7 +599,7 @@ export default class Start extends Phaser.Scene
         {
             launchErrors.push(
                 'a valid condition ' +
-                'matching this task link'
+                '(insufficiency, sufficiency, abundance, or actual)'
             );
         }
 
@@ -636,100 +623,6 @@ export default class Start extends Phaser.Scene
         this.showWelcomeScreen();
     }
 
-    /*
-     * This method must remain outside create(),
-     * but inside the Start class.
-     */
-    assignSelfInterestCondition ()
-    {
-        if (this.gameData.incomeControlFallback || this.gameData.respondentDecile === null)
-        {
-            return 'neutral';
-        }
-        const validConditions = [
-            'reveal',
-            'neutral'
-        ];
-
-        if (
-            validConditions.includes(
-                this.requestedSelfInterestCondition
-            )
-        )
-        {
-            return this.requestedSelfInterestCondition;
-        }
-
-        const storageKey =
-            `americanEconomySelfInterest:${this.gameData.gameId}`;
-
-        try
-        {
-            const storedCondition =
-                sessionStorage.getItem(
-                    storageKey
-                );
-
-            if (
-                validConditions.includes(
-                    storedCondition
-                )
-            )
-            {
-                return storedCondition;
-            }
-        }
-        catch (error)
-        {
-            /*
-             * Continue with a new random assignment
-             * if session storage is unavailable.
-             */
-        }
-
-        let randomValue = Math.random();
-
-        if (
-            window.crypto &&
-            typeof window.crypto.getRandomValues ===
-                'function'
-        )
-        {
-            const randomArray =
-                new Uint32Array(1);
-
-            window.crypto.getRandomValues(
-                randomArray
-            );
-
-            randomValue =
-                randomArray[0] / 4294967296;
-        }
-
-        const assignedCondition =
-            randomValue < 0.5
-                ? 'reveal'
-                : 'neutral';
-
-        try
-        {
-            sessionStorage.setItem(
-                storageKey,
-                assignedCondition
-            );
-        }
-        catch (error)
-        {
-            /*
-             * The assignment remains valid for
-             * the current game even if it cannot
-             * be stored.
-             */
-        }
-
-        return assignedCondition;
-    }
-
     isValidExternalId (value)
     {
         return (
@@ -738,42 +631,6 @@ export default class Start extends Phaser.Scene
                 value
             )
         );
-    }
-
-    resolveParentOrigin (configuredOrigin)
-    {
-        const candidates = [
-            configuredOrigin,
-            document.referrer
-        ];
-
-        for (const candidate of candidates)
-        {
-            if (!candidate)
-            {
-                continue;
-            }
-
-            try
-            {
-                const parsed =
-                    new URL(candidate);
-
-                if (parsed.protocol === 'https:')
-                {
-                    return parsed.origin;
-                }
-            }
-            catch (error)
-            {
-                /*
-                 * Ignore invalid optional origins
-                 * and try the next candidate.
-                 */
-            }
-        }
-
-        return null;
     }
 
     resolveParentOrigin (configuredOrigin)
@@ -1094,8 +951,18 @@ showTaskInstructions ()
 
     this.addScreenText(
         640,
-        330,
+        240,
         'Governments make choices about whether income should be redistributed and, if so, how.',
+        27,
+        COLORS.ink,
+        900,
+        'center'
+    ).setOrigin(0.5);
+
+    this.addScreenText(
+        640,
+        390,
+        'In this task, federal and state assistance programs remain in place. Assistance programs cover some, but not all, basic needs.',
         27,
         COLORS.ink,
         900,
@@ -1115,7 +982,7 @@ showTaskInstructions ()
         this.addScreenText(
             640,
             195,
-            'For this task, assume that existing federal and state assistance programs remain in place. Even with those programs, one person still needs at least $12,000 a year ($1,000 a month) in income to meet basic needs.',
+            'Even with assistance programs, a person still needs $12,000 a year ($1,000 a month) in income to meet all basic needs.',
             27,
             COLORS.ink,
             930,
@@ -1144,35 +1011,35 @@ showTaskInstructions ()
     {
         this.enterScreen('unmet_needs_consequences');
         this.clearScreen();
-        this.addPanel(640, 360, 1080, 620);
+        this.addPanel(640, 360, 1080, 660);
 
         this.addScreenText(
-            640, 165, '$12,000 or more', 29,
+            640, 140, '$12,000 or more', 29,
             COLORS.ink, 900, 'center'
         ).setOrigin(0.5).setFontStyle('bold');
 
         this.addScreenText(
-            640, 265,
+            640, 240,
             'A person can meet basic needs. They will have adequate food, shelter, and medical care. More income can still improve their life.',
             26, COLORS.ink, 930, 'center'
         ).setOrigin(0.5);
 
         this.addScreenObject(
-            this.add.rectangle(640, 390, 880, 2, COLORS.mutedBorder)
+            this.add.rectangle(640, 325, 880, 2, COLORS.mutedBorder)
         );
 
         this.addScreenText(
-            640, 455, 'Below $12,000', 29,
+            640, 395, 'Below $12,000', 29,
             COLORS.ink, 900, 'center'
         ).setOrigin(0.5).setFontStyle('bold');
 
         this.addScreenText(
-            640, 520,
+            640, 495,
             'A person cannot meet all basic needs. They will go hungry, lack housing, or miss needed care—even lifesaving medicine. When basic needs go unmet, the risk of death rises.',
             26, COLORS.ink, 930, 'center'
         ).setOrigin(0.5);
 
-        this.addButton(640, 635, 190, 54, 'Next', () => {
+        this.addButton(640, 650, 190, 54, 'Next', () => {
             this.showBasicNeedsComprehensionCheck();
         });
     }
@@ -1460,7 +1327,7 @@ showRepresentativePersonExplanation ()
     this.addScreenText(
         640,
         150,
-        'Each person shown represents one-tenth of U.S. adults, grouped by household income per person.',
+        'Each person represents one-tenth of U.S. adults, ranked by household income per person.',
         27,
         COLORS.ink,
         900,
@@ -1485,7 +1352,7 @@ showRepresentativePersonExplanation ()
     this.addScreenText(
         640,
         535,
-        "The blocks show average annual household income per person in that income group, before taxes.",
+        "The blocks show each group’s average yearly household income per person. The amounts include money from government programs and subtract taxes.",
         26,
         COLORS.ink,
         900,
@@ -1636,7 +1503,7 @@ showRepresentativePersonExplanation ()
         this.addScreenText(
             640,
             50,
-            'Here are 10 people. Each represents one-tenth of U.S. adults, ordered by income. The income shown is the average for each income group.',
+            'Each person represents about 27 million U.S. adults. The income shown is that group’s average.',
             27,
             COLORS.ink,
             1120,
@@ -1837,7 +1704,7 @@ showAvailableIncomeDistribution ()
         this.addScreenText(
             640,
             245,
-            'If the total income shown were redistributed, could all 10 people have at least $12,000 each?',
+            'If the total income shown were redistributed, could each of the 10 representative people have at least $12,000?',
             27,
             COLORS.ink,
             900,
@@ -1870,7 +1737,7 @@ showAvailableIncomeDistribution ()
 );
 
 const incomeDebrief = this.conditionConfig.code === 'actual'
-    ? 'The incomes shown were based on estimates of the U.S. income distribution, then simplified and rounded. They are not the exact incomes of particular Americans.'
+    ? 'The incomes shown are simplified estimates of the U.S. income distribution, not the exact incomes of particular Americans.'
     : 'The income amounts shown were hypothetical and created for this study. They were not the actual U.S. income levels.';
 
 this.showTaskTransition('debrief', 'About this task', [
@@ -2118,9 +1985,7 @@ this.showTaskTransition('debrief', 'About this task', [
         const boardTitles = {
             free: 'Arrange the blocks in the way you think is best for America',
             equal: 'Divide the income equally among all 10 people',
-            partial: 'Use income above $12,000 to help as many people as possible reach $12,000.',
-            self_interest:
-                'Now arrange the blocks in the way you think is best for America'
+            partial: 'Use income above $12,000 to help as many people as possible reach $12,000.'
         };
 
 const equalValue =
@@ -2167,10 +2032,7 @@ this.addScreenText(
         this.addScreenText(
             640,
             72,
-            mode === 'self_interest' &&
-this.gameData.selfInterestCondition === 'reveal'
-    ? `Your income group is Group ${this.gameData.respondentDecile}; its box is outlined in green.`
-    : CLOSED_POOL_TEXT,
+            `${CLOSED_POOL_TEXT} Purple line: $12,000 basic-needs level.`,
             14,
             COLORS.muted,
             1050,
@@ -2201,11 +2063,6 @@ this.gameData.selfInterestCondition === 'reveal'
             const amount = this.currentAllocation[index];
             const meetsNeed = amount >= NEED_PER_PERSON;
             const selected = this.selectedSourceDecile === index;
-            const isRespondentDecile =
-    mode === 'self_interest' &&
-    this.gameData.selfInterestCondition === 'reveal' &&
-    index === this.gameData.respondentDecile - 1;
-
             const fillColor = selected
                 ? COLORS.cardSelected
                 : meetsNeed
@@ -2221,12 +2078,10 @@ this.gameData.selfInterestCondition === 'reveal'
             );
 
             card.setStrokeStyle(
-                selected || isRespondentDecile ? 4 : 2,
+                selected ? 4 : 2,
                 selected
                     ? COLORS.resourceSelected
-                    : isRespondentDecile
-                        ? COLORS.respondentDecile
-                        : COLORS.border
+                    : COLORS.border
             );
 
             card.setInteractive({ useHandCursor: selected });
@@ -2310,16 +2165,6 @@ this.gameData.selfInterestCondition === 'reveal'
         thresholdLine.setDepth(60);
         this.addScreenObject(thresholdLine);
 
-        this.addScreenText(
-            22,
-            thresholdY - 22,
-            '$12,000',
-            14,
-            '#6c3483',
-            90,
-            'left'
-        ).setBackgroundColor('#f4f6f8').setPadding(3, 1, 3, 1).setDepth(61);
-
         const meetingNeed = this.countPeopleMeetingNeed(
             this.currentAllocation
         );
@@ -2355,7 +2200,7 @@ else
             'left'
         ).setOrigin(0, 0.5);
 
-        if (mode === 'free' || mode === 'self_interest')
+        if (mode === 'free')
         {
             this.addScreenText(740, 578, 'Blocks per move', 16, COLORS.ink, 175, 'right')
                 .setOrigin(1, 0.5);
@@ -2381,8 +2226,6 @@ else
             'center'
         ).setOrigin(0.5);
 
-        if (mode !== 'self_interest')
-        {
             this.addButton(
                 480,
                 675,
@@ -2404,7 +2247,6 @@ else
                 COLORS.buttonLight,
                 COLORS.ink
             );
-        }
 
         if (mode === 'free')
         {
@@ -2523,57 +2365,6 @@ else
         );
     }
 }
-else if (mode === 'self_interest')
-{
-    /*
-     * Reset
-     */
-    this.addButton(
-        480,
-        675,
-        160,
-        50,
-        'Reset',
-        () => {
-            this.currentAllocation = [
-                ...this.initialAllocation
-            ];
-
-            this.selectedSourceDecile = null;
-            this.boardFeedbackMessage = '';
-            this.selfInterestEqualApplied = false;
-            this.selfInterestPartialApplied = false;
-
-            this.recordAction({
-                action: 'reset_allocation',
-                task: mode
-            });
-
-            this.redrawAllocationBoard();
-        },
-        COLORS.buttonLight,
-        COLORS.ink
-    );
-
-    /*
-     * Submit
-     */
-    this.addButton(
-        800,
-        675,
-        300,
-        50,
-        'Submit this arrangement',
-        () => {
-            this.storeSelfInterestAllocation(
-                this.currentAllocation
-            );
-
-            this.showManipulationCheck();
-        }
-    );
-}
-
     
         ;
     }
@@ -2741,12 +2532,6 @@ else if (mode === 'self_interest')
                 this.boardFeedbackMessage =
                     'Only blocks above the basic-needs line may be moved in this task.';
             }
-
-            if (this.allocationMode === 'self_interest')
-{
-    this.selfInterestEqualApplied = false;
-    this.selfInterestPartialApplied = false;
-}
 
             this.selectedSourceDecile = null;
             this.redrawAllocationBoard();
@@ -2940,58 +2725,6 @@ else if (mode === 'self_interest')
             allocation: finalAllocation,
             peopleMeetingNeed: meetingNeed
         });
-    }
-
-    showEqualDivisionOutcomeQuestion ()
-    {
-        this.enterScreen('equal_division_outcome_question');
-        this.clearScreen();
-        this.addPanel(640, 360, 1000, 520);
-
-        this.addScreenText(
-            640,
-            160,
-            'After dividing the income equally, how many of the 10 people had at least $12,000?',
-            29,
-            COLORS.ink,
-            900,
-            'center'
-        ).setOrigin(0.5);
-
-        const choices = [
-            { value: 0, label: '0 people' },
-            { value: 5, label: '5 people' },
-            { value: 10, label: '10 people' }
-        ];
-
-        if (Phaser.Math.Between(0, 1) === 1) choices.reverse();
-
-        choices.forEach((choice, index) => {
-            this.addConfirmedButton(
-                640,
-                315 + index * 76,
-                360,
-                52,
-                choice.label,
-                () => {
-                    this.gameData.equalDivisionOutcomeChoice = choice.value;
-                    this.gameData.equalDivisionOutcomePassed =
-                        choice.value ===
-                        this.conditionConfig.equalPeopleMeetingNeed;
-
-                    this.recordAnswer(
-                        'equal_division_outcome',
-                        choice.value
-                    );
-
-                    this.showRedistributionQuestion(0);
-                },
-                COLORS.buttonLight,
-                COLORS.ink
-            );
-        });
-    
-        ;
     }
 
     showPartialPolicyIntroduction ()
@@ -3245,46 +2978,6 @@ buildAutomaticPartialAllocation ()
         (this.confirmedChoiceBoxes ||= []).push(box);
         return box;
     }
-    showRedistributionChecklist(index) {
-        const codes = ['basic_needs', 'support'];
-        const code = codes[index];
-        this.enterScreen('redistribution_checklist_' + code);
-        this.clearScreen();
-        this.addPanel(640, 360, 1120, 610);
-        this.addScreenText(640, 135, index === 0
-            ? 'Which approaches do you think would help people meet their basic needs? Select all that apply.'
-            : 'Which approaches would you support? Select all that apply.',
-            27, COLORS.ink, 1000, 'center').setOrigin(0.5);
-        const options = [
-            {code: 'noRedistribution', label: 'Each person should keep their starting income.'},
-            {code: 'equalRedistribution', label: 'Income should be divided equally among all people.'},
-            {code: 'partialRedistribution', label: 'Income above the basic-needs line should be redistributed so that the greatest possible number of people have at least $12,000.'}
-        ];
-        const selected = {noRedistribution: false, equalRedistribution: false, partialRedistribution: false};
-        const next = this.addButton(640, 680, 180, 48, 'Next', () => {
-            if (!Object.values(selected).some(Boolean)) return;
-            this.gameData.redistributionChecklistChoices[code] = {...selected};
-            this.recordAnswer('redistribution_checklist_' + code, {...selected});
-            if (index === 0) this.showRedistributionChecklist(1);
-            else this.showEconomicPrinciple(0);
-        });
-        next.disableInteractive().setAlpha(0.4);
-        this.getOrderedOptions(code, options, this.gameData.redistributionChecklistOrders).forEach((option, i) => {
-            const y = 290 + i * 115;
-            const box = this.add.rectangle(640, y, 1000, 95, COLORS.card).setStrokeStyle(2, COLORS.border).setInteractive({useHandCursor: true});
-            this.addScreenObject(box);
-            this.addScreenObject(this.add.rectangle(190, y, 32, 32, COLORS.panel).setStrokeStyle(2, COLORS.border));
-            const mark = this.addScreenText(190, y, '✓', 30, COLORS.ink, 50, 'center').setOrigin(0.5).setVisible(false);
-            this.addScreenText(235, y, option.label, 23, COLORS.ink, 865, 'left').setOrigin(0, 0.5);
-            box.on('pointerdown', () => {
-                selected[option.code] = !selected[option.code];
-                mark.setVisible(selected[option.code]);
-                box.setStrokeStyle(selected[option.code] ? 4 : 2, COLORS.border);
-                if (Object.values(selected).some(Boolean)) next.setInteractive({useHandCursor: true}).setAlpha(1);
-                else next.disableInteractive().setAlpha(0.4);
-            });
-        });
-    }
     showRedistributionQuestion (questionIndex)
 {
     if (questionIndex >= REDISTRIBUTION_QUESTIONS.length)
@@ -3450,230 +3143,6 @@ buildAutomaticPartialAllocation ()
         });
     
         ;
-    }
-
-    showSelfInterestRandomizationScreen ()
-{
-    if (this.gameData.incomeControlFallback || this.gameData.respondentDecile === null)
-    {
-        this.gameData.selfInterestCondition = 'neutral';
-        this.gameData.respondentDecileRevealed = false;
-        this.showNeutralSelfInterestScreen();
-        return;
-    }
-
-    if (!this.gameData.selfInterestCondition)
-    {
-        this.gameData.selfInterestCondition =
-            this.assignSelfInterestCondition();
-
-        this.recordAction({
-            action:
-                'assign_self_interest_condition',
-            condition:
-                this.gameData.selfInterestCondition
-        });
-    }
-
-    if (
-        this.gameData.selfInterestCondition ===
-        'reveal'
-    )
-    {
-        this.showRespondentDecileScreen();
-    }
-    else
-    {
-        this.showNeutralSelfInterestScreen();
-    }
-}
-
-showNeutralSelfInterestScreen ()
-{
-    this.enterScreen(
-        'self_interest_neutral_screen'
-    );
-
-    this.clearScreen();
-
-    this.gameData.respondentDecileRevealed = false;
-
-    this.addScreenText(
-        640,
-        35,
-        'You will complete one final income task',
-        31,
-        COLORS.ink,
-        1080,
-        'center'
-    ).setOrigin(0.5, 0);
-
-    this.addScreenText(
-        640,
-        88,
-        'You will now see the same ten income groups again.',
-        22,
-        COLORS.ink,
-        1040,
-        'center'
-    ).setOrigin(0.5, 0);
-
-    this.addScreenText(
-        640,
-        145,
-        'In this task, the income shown is the average for each income group.',
-        18,
-        COLORS.muted,
-        1040,
-        'center'
-    ).setOrigin(0.5, 0);
-
-    this.drawStaticTenDecileDistribution(
-        195,
-        365
-    );
-
-    this.addButton(
-        640,
-        665,
-        210,
-        50,
-        'Continue',
-        () => {
-            this.startSelfInterestAllocation();
-        }
-    );
-
-        ;
-    }
-
-    showRespondentDecileScreen ()
-    {
-        this.enterScreen('respondent_decile_reveal');
-        this.clearScreen();
-
-        this.gameData.respondentDecileRevealed = true;
-
-        this.addScreenText(
-            640,
-            35,
-            `Your approximate income group is Group ${this.gameData.respondentDecile} of 10`,
-            31,
-            COLORS.ink,
-            1080,
-            'center'
-        ).setOrigin(0.5, 0);
-
-        this.addScreenText(
-            640,
-            88,
-            'Based on your answers, this is approximately where your household falls in the income distribution.',
-            22,
-            COLORS.ink,
-            1040,
-            'center'
-        ).setOrigin(0.5, 0);
-
-        this.addScreenText(
-            640,
-            145,
-            'The green outline marks your approximate income group. The income shown is the group average, not your reported income.',
-            18,
-            COLORS.muted,
-            1040,
-            'center'
-        ).setOrigin(0.5, 0);
-
-        this.drawStaticTenDecileDistribution(
-            195,
-            365,
-            this.gameData.respondentDecile
-        );
-
-        this.addButton(
-            640,
-            665,
-            210,
-            50,
-            'Continue',
-            () => {
-                this.startSelfInterestAllocation();
-            }
-        );
-    
-        ;
-    }
-
-    startSelfInterestAllocation ()
-    {
-        this.allocationMode = 'self_interest';
-        this.transferBatchSize = 1;
-        this.currentAllocation = [...this.initialAllocation];
-        this.selectedSourceDecile = null;
-        this.boardFeedbackMessage = '';
-        this.selfInterestEqualApplied = false;
-        this.selfInterestPartialApplied = false;
-        this.enterScreen('self_interest_allocation_board');
-        this.redrawAllocationBoard();
-    }
-
-    storeSelfInterestAllocation (allocation)
-    {
-        const finalAllocation = [...allocation];
-        const respondentIndex = this.gameData.respondentDecile - 1;
-        const meetingNeed = this.countPeopleMeetingNeed(finalAllocation);
-
-        const totalMoved = finalAllocation.reduce(
-            (sum, value, index) =>
-                sum + Math.abs(value - this.initialAllocation[index]),
-            0
-        ) / 2;
-
-        this.gameData.selfInterestAllocationFinal = finalAllocation;
-        this.gameData.selfInterestAllocationPeopleMeetingNeed = meetingNeed;
-        this.gameData.selfInterestAllocationGini =
-            this.calculateGini(finalAllocation);
-        this.gameData.selfInterestAllocationClassification =
-            this.classifyAllocation(finalAllocation);
-        this.gameData.selfInterestAllocationTotalMoved = totalMoved;
-        const hasRespondentDecile = Number.isInteger(this.gameData.respondentDecile) &&
-            this.gameData.respondentDecile >= 1 && this.gameData.respondentDecile <= 10;
-        this.gameData.selfInterestOwnStartingBlocks = hasRespondentDecile
-            ? this.initialAllocation[respondentIndex] : null;
-        this.gameData.selfInterestOwnFinalBlocks = hasRespondentDecile
-            ? finalAllocation[respondentIndex] : null;
-        this.gameData.selfInterestOwnChange = hasRespondentDecile
-            ? finalAllocation[respondentIndex] - this.initialAllocation[respondentIndex] : null;
-        this.gameData.selfInterestEqualButtonUsed =
-            this.selfInterestEqualApplied;
-            this.gameData.selfInterestPartialButtonUsed =
-    this.selfInterestPartialApplied;
-
-this.recordAction({
-    action: 'submit_self_interest_allocation',
-    selfInterestCondition:
-        this.gameData.selfInterestCondition,
-    respondentDecileRevealed:
-        this.gameData.respondentDecileRevealed,
-    respondentDecile:
-        this.gameData.respondentDecile,
-    allocation: finalAllocation,
-    respondentStartingBlocks:
-        this.gameData.selfInterestOwnStartingBlocks,
-    respondentFinalBlocks:
-        this.gameData.selfInterestOwnFinalBlocks,
-    respondentChange:
-        this.gameData.selfInterestOwnChange,
-    peopleMeetingNeed: meetingNeed,
-    gini: this.gameData.selfInterestAllocationGini,
-    totalMoved,
-    classification:
-        this.gameData.selfInterestAllocationClassification,
-    equalButtonUsed:
-        this.gameData.selfInterestEqualButtonUsed,
-    partialButtonUsed:
-        this.gameData.selfInterestPartialButtonUsed
-});
     }
 
     drawPrincipleChoice (centerX, principleCode, option, callback)
@@ -4045,8 +3514,7 @@ this.recordAction({
 
     drawStaticTenDecileDistribution (
         cardTop,
-        cardHeight,
-        highlightedDecile = null
+        cardHeight
     )
     {
         const startX = 68;
@@ -4067,8 +3535,6 @@ this.recordAction({
         {
             const centerX = startX + index * gap;
             const amount = this.initialAllocation[index];
-            const isHighlighted = highlightedDecile === index + 1;
-
             const card = this.add.rectangle(
                 centerX,
                 cardTop + cardHeight / 2,
@@ -4079,12 +3545,7 @@ this.recordAction({
                     : COLORS.cardBelow
             );
 
-            card.setStrokeStyle(
-                isHighlighted ? 5 : 2,
-                isHighlighted
-                    ? COLORS.respondentDecile
-                    : COLORS.border
-            );
+            card.setStrokeStyle(2, COLORS.border);
             this.addScreenObject(card);
             this.drawPersonGlyph(centerX, cardTop + 26, 0.52);
 
@@ -4221,36 +3682,19 @@ this.recordAction({
         const thresholdY = chartBottom - NEED_PER_PERSON * unitHeight;
         const barWidth = Math.min(130, width - 60);
 
-        if (amount > 40)
-        {
-            // At high incomes, individually striped $1,000 blocks become visual noise.
-            const barHeight = amount * unitHeight;
-            const bar = this.add.rectangle(
-                centerX,
-                chartBottom - barHeight / 2,
-                barWidth,
-                barHeight,
-                COLORS.resource
-            );
-            bar.setStrokeStyle(1, COLORS.resourceBorder);
-            bar.setAlpha(alpha);
-            this.addScreenObject(bar);
-        }
-        else
-        {
-            const blockGap = Math.min(1.2, unitHeight * 0.16);
-            const blockHeight = unitHeight - blockGap;
-            this.drawBlockStack(
-                centerX,
-                chartBottom - blockHeight / 2,
-                amount,
-                barWidth,
-                blockHeight,
-                blockGap,
-                COLORS.resource,
-                alpha
-            );
-        }
+        // Keep every $1,000 block visible, even in the tallest income group.
+        const blockGap = Math.min(1.2, unitHeight * 0.45);
+        const blockHeight = unitHeight - blockGap;
+        this.drawBlockStack(
+            centerX,
+            chartBottom - blockHeight / 2,
+            amount,
+            barWidth,
+            blockHeight,
+            blockGap,
+            COLORS.resource,
+            alpha
+        );
 
         const line = this.add.line(
             0,
