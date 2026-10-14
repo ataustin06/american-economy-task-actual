@@ -831,6 +831,16 @@ showWelcomeScreen ()
         'center'
     ).setOrigin(0.5);
 
+    this.addScreenText(
+        640,
+        465,
+        'Please read carefully and answer each question.',
+        24,
+        COLORS.ink,
+        820,
+        'center'
+    ).setOrigin(0.5);
+
     this.addButton(
         640,
         555,
@@ -838,58 +848,10 @@ showWelcomeScreen ()
         56,
         'Next',
         () => {
-            this.showTaskInstructions();
-        }
-    );
-    }
-
-showTaskInstructions ()
-{
-    this.enterScreen('task_instructions');
-    this.clearScreen();
-    this.addPanel(640, 360, 1000, 520);
-
-    this.addScreenText(
-        640,
-        155,
-        'Before you begin',
-        38,
-        COLORS.ink,
-        800,
-        'center'
-    ).setOrigin(0.5);
-
-    this.addScreenText(
-        640,
-        285,
-        'Use a laptop or desktop computer.',
-        27,
-        COLORS.warning,
-        820,
-        'center'
-    ).setOrigin(0.5);
-
-    this.addScreenText(
-        640,
-        420,
-        'Read carefully and answer each question.',
-        26,
-        COLORS.ink,
-        820,
-        'center'
-    ).setOrigin(0.5);
-
-    this.addButton(
-        640,
-        575,
-        190,
-        56,
-        'Begin',
-        () => {
             this.showIncomeDifferencesIntroduction();
         }
     );
-}
+    }
 
     // Screen 1
     showIncomeDifferencesIntroduction ()
