@@ -1,32 +1,21 @@
-console.log('MAIN.JS LOADED');
+import Start from './scenes/TaskScene.js?v=20261021-feasibility-labels';
 
-import Start from './scenes/Start.js';
+window.TASK_SETUP = Object.freeze({kind: 'economy', condition: 'actual'});
 
-console.log('START IMPORTED:', Start);
-
+const portrait = window.innerHeight > window.innerWidth;
+const logicalWidth = portrait ? 720 : 1280;
+const logicalHeight = portrait ? 1280 : 720;
+const displayScale = Math.min(window.innerWidth / logicalWidth, window.innerHeight / logicalHeight);
+const physicalScale = displayScale * (window.devicePixelRatio || 1);
+const renderScale = Math.min(2, Math.max(1, Math.ceil(physicalScale * 4) / 4));
 const config = {
     type: Phaser.AUTO,
-
     parent: 'game-container',
-
-    width: 1280,
-    height: 720,
-
-    backgroundColor: '#ffffff',
-
-    physics: {
-        default: 'arcade',
-        arcade: {
-            debug: false
-        }
-    },
-
+    width: logicalWidth * renderScale,
+    height: logicalHeight * renderScale,
+    backgroundColor: '#f4f6f8',
     scene: [Start],
-
-    scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH
-    }
+    scale: {mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH}
 };
 
-new Phaser.Game(config);
+window.taskGame = new Phaser.Game(config);
