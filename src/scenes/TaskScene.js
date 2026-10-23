@@ -72,8 +72,28 @@ function partialAllocation(start, threshold) {
         }
     }
     if (!required) return result;
+    // Contributions rise with squared surplus, capped at each donor's surplus.
+    // The common rate is recalculated if any donor reaches that cap.
+    const exactContributions = new Map();
+    let unassigned = required;
+    let uncapped = [...donors];
+    while (uncapped.length) {
+        const weight = uncapped.reduce((sum, d) => sum + d.surplus ** 2, 0);
+        const rate = unassigned / weight;
+        const capped = uncapped.filter(d => rate * d.surplus ** 2 >= d.surplus);
+        if (!capped.length) {
+            for (const d of uncapped) exactContributions.set(d.index, rate * d.surplus ** 2);
+            break;
+        }
+        const cappedIndexes = new Set(capped.map(d => d.index));
+        for (const d of capped) {
+            exactContributions.set(d.index, d.surplus);
+            unassigned -= d.surplus;
+        }
+        uncapped = uncapped.filter(d => !cappedIndexes.has(d.index));
+    }
     const shares = donors.map(d => {
-        const exact = required * d.surplus / totalSurplus;
+        const exact = exactContributions.get(d.index);
         return {...d, contribution: Math.floor(exact), remainder: exact - Math.floor(exact)};
     }).sort((a,b) => b.remainder - a.remainder || b.surplus - a.surplus || a.index - b.index);
     let left = required - shares.reduce((s,x) => s + x.contribution,0);
@@ -132,7 +152,7 @@ export default class TaskScene extends Phaser.Scene {
         this.assignedPosition = Math.floor(Math.random()*3);
         this.gameData = {
             gameId:this.gameId, qualtricsId:this.qualtricsId, condition:this.condition,
-            gameVersion:`parallel_terciles_${this.kind}_${this.kind==='economy'?'v16':'v4'}`,
+            gameVersion:`parallel_terciles_${this.kind}_${this.kind==='economy'?'v17':'v4'}`,
             gameStartTime:new Date().toISOString(), gameEndTime:null, totalDurationMs:null,
             initialAllocation:[...this.original], totalUnits:this.total,
             needPerPersonUnits:this.spec.threshold, dollarsPerUnit:this.kind === 'economy' ? 1000 : null,
@@ -332,8 +352,8 @@ export default class TaskScene extends Phaser.Scene {
         ] : [
             'In this task, you will make decisions about how income is distributed in America.',
             'You will see three U.S. income groups: lower, middle, and higher income. Each will represent one-third of U.S. adults.',
-            'Income is shown after people have paid taxes and received government benefits. Existing assistance programs cover some, but not all, basic needs.',
-            'One person needs at least $12,000 per year ($1,000 per month) in income to meet basic needs.',
+            'The incomes shown already reflect existing taxes and government assistance. Any redistribution considered here is an additional government rule, not a voluntary gift.',
+            'One person needs at least $12,000 per year ($1,000 per month) in income to meet basic needs. Existing assistance programs cover some, but not all, basic needs.',
             'At or above $12,000, a person will have adequate food, shelter, and medical care. More income can still improve their life.',
             'Below $12,000, a person cannot meet all basic needs. They will go hungry, lack housing, or miss needed care—even lifesaving medicine. When basic needs go unmet, the risk of death rises.',
             'Each green block represents $1,000. The total number of blocks for all three income groups is fixed.'

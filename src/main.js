@@ -1,4 +1,4 @@
-import Start from './scenes/TaskScene.js?v=20261021-feasibility-labels';
+import Start from './scenes/TaskScene.js?v=20261023-graduated-targeted';
 
 window.TASK_SETUP = Object.freeze({kind: 'economy', condition: 'actual'});
 
