@@ -1,4 +1,4 @@
-import Start from './scenes/TaskScene.js?v=20261123-position-wording-v18';
+import Start from './scenes/TaskScene.js?v=20261123-priority-wording-v19';
 
 window.TASK_SETUP = Object.freeze({kind: 'economy', condition: 'actual'});
 
