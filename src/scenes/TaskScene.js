@@ -149,10 +149,10 @@ export default class TaskScene extends Phaser.Scene {
         this.pageHistory = [];
         this.questionOrders = {};
         this.taskOrder = ['free',...shuffle(['equal','partial']),'self'];
-        this.assignedPosition = Math.floor(Math.random()*3);
+        this.assignedPosition = this.assignPositionForSession();
         this.gameData = {
             gameId:this.gameId, qualtricsId:this.qualtricsId, condition:this.condition,
-            gameVersion:`parallel_terciles_${this.kind}_${this.kind==='economy'?'v17':'v4'}`,
+            gameVersion:`parallel_terciles_${this.kind}_${this.kind==='economy'?'v18_position_refresh_20261123':'v4'}`,
             gameStartTime:new Date().toISOString(), gameEndTime:null, totalDurationMs:null,
             initialAllocation:[...this.original], totalUnits:this.total,
             needPerPersonUnits:this.spec.threshold, dollarsPerUnit:this.kind === 'economy' ? 1000 : null,
@@ -187,6 +187,26 @@ export default class TaskScene extends Phaser.Scene {
             return;
         }
         this.showIntro(0);
+    }
+
+    assignPositionForSession() {
+        // A tab refresh should not change the participant's randomly assigned role.
+        // Include both survey identifiers and the condition to keep attempts separate.
+        const validId = value => /^[A-Za-z0-9_-]{3,200}$/.test(value);
+        const canRemember = this.kind === 'economy' && validId(this.gameId) && validId(this.qualtricsId);
+        const storageKey = `americanEconomyTask:position:v1:${this.condition}:${this.gameId}:${this.qualtricsId}`;
+        if (canRemember) {
+            try {
+                const stored = sessionStorage.getItem(storageKey);
+                if (stored === '0' || stored === '1' || stored === '2') return Number(stored);
+            } catch (_) { /* Continue with a random role if storage is unavailable. */ }
+        }
+        const assigned = Math.floor(Math.random() * 3);
+        if (canRemember) {
+            try { sessionStorage.setItem(storageKey, String(assigned)); }
+            catch (_) { /* The task remains usable if storage is unavailable. */ }
+        }
+        return assigned;
     }
 
     clear(screen) {
@@ -496,7 +516,7 @@ export default class TaskScene extends Phaser.Scene {
         this.applied=false;
         const role=this.kind==='survival'
             ? (this.stage==='self' ? ` You are ${this.spec.labels[this.assignedPosition]} (${['lower','middle','higher'][this.assignedPosition]} position).` : ' You are outside the group.')
-            : (this.stage==='self' ? ` Imagine you are in the ${this.spec.labels[this.assignedPosition].toLowerCase()} group.` : '');
+            : (this.stage==='self' ? ` For this part, you have been randomly assigned to the ${['lower','middle','higher'][this.assignedPosition]}-income group. Imagine that you are in this group.` : '');
         const instructions=this.kind==='survival' ? {
             free:'Arrange the resources as you think best for the group.',
             equal:'Start with the original amounts and see what equal division produces.',
@@ -505,7 +525,7 @@ export default class TaskScene extends Phaser.Scene {
         } : {
             free:'Arrange the three groups’ average income as you think best for the country.',
             equal:'Go back to the original income distribution. See what happens when income is divided equally among the three groups.',
-            partial:'Go back to the original income distribution. See what happens when only income above $12,000 is redistributed to help as many people as possible reach $12,000 per year.',
+            partial:'Go back to the original income distribution. See what happens when income above $12,000 is used to bring as many groups as possible up to $12,000.',
             self:'Start with the original group averages again and arrange them as you think best.'
         };
         const emphasizeRole=this.stage==='self';
@@ -742,11 +762,11 @@ export default class TaskScene extends Phaser.Scene {
         const binaryPrompt=stage==='equal'
             ? (this.kind==='survival'
                 ? 'If these were the only two options, should the group divide the food equally or let each person keep what they collected?'
-                : 'If these were the only two options, should the government divide the income shown equally across the population or leave the original distribution unchanged?')
+                : 'Should the government divide income equally among the three groups, or leave it as it is?')
             : stage==='partial'
                 ? (this.kind==='survival'
                     ? 'If these were the only two options, should the group use food above the survival line to help as many people survive as possible, or let each person keep what they collected?'
-                    : 'If these were the only two options, should the government use income above the basic-needs line to raise as many group averages as possible to $12,000, or leave the original distribution unchanged?')
+                    : 'Should the government use income above $12,000 to bring as many groups as possible up to $12,000, or leave it as it is?')
                 : 'Which arrangement would you choose?';
         const frames=[
             ...(this.kind==='survival'?[{key:'feasibility',prompt:'If the group redistributed the food it collected, do you think there would be enough for everyone?',options:['Yes','No']}]:[]),

@@ -1,4 +1,4 @@
-import Start from './scenes/TaskScene.js?v=20261023-graduated-targeted';
+import Start from './scenes/TaskScene.js?v=20261123-position-wording-v18';
 
 window.TASK_SETUP = Object.freeze({kind: 'economy', condition: 'actual'});
 
