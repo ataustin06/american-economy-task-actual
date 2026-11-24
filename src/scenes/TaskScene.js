@@ -152,7 +152,7 @@ export default class TaskScene extends Phaser.Scene {
         this.assignedPosition = this.assignPositionForSession();
         this.gameData = {
             gameId:this.gameId, qualtricsId:this.qualtricsId, condition:this.condition,
-            gameVersion:`parallel_terciles_${this.kind}_${this.kind==='economy'?'v23_two_options_20261123':'v4'}`,
+            gameVersion:`parallel_terciles_${this.kind}_${this.kind==='economy'?'v24_personal_two_options_20261123':'v4'}`,
             gameStartTime:new Date().toISOString(), gameEndTime:null, totalDurationMs:null,
             initialAllocation:[...this.original], totalUnits:this.total,
             needPerPersonUnits:this.spec.threshold, dollarsPerUnit:this.kind === 'economy' ? 1000 : null,
@@ -763,11 +763,11 @@ export default class TaskScene extends Phaser.Scene {
         const binaryPrompt=stage==='equal'
             ? (this.kind==='survival'
                 ? 'If these were the only two options, should the group divide the food equally or let each person keep what they collected?'
-                : 'Should the government divide income equally among the three groups, or leave it as it is?')
+                : 'If these were the only two options, should the government divide income equally among the three groups, or leave it as it is?')
             : stage==='partial'
                 ? (this.kind==='survival'
                     ? 'If these were the only two options, should the group use food above the survival line to help as many people survive as possible, or let each person keep what they collected?'
-                    : 'Should the government use income above $12,000 to bring as many groups as possible up to $12,000, or leave it as it is?')
+                    : 'If these were the only two options, should the government use income above $12,000 to bring as many groups as possible up to $12,000, or leave it as it is?')
                 : 'Which arrangement would you choose?';
         const frames=[
             ...(this.kind==='survival'?[{key:'feasibility',prompt:'If the group redistributed the food it collected, do you think there would be enough for everyone?',options:['Yes','No']}]:[]),
