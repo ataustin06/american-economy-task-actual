@@ -1,4 +1,4 @@
-import Start from './scenes/TaskScene.js?v=20261123-average-example-v22';
+import Start from './scenes/TaskScene.js?v=20261123-two-options-v23';
 
 window.TASK_SETUP = Object.freeze({kind: 'economy', condition: 'actual'});
 

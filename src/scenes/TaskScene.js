@@ -152,7 +152,7 @@ export default class TaskScene extends Phaser.Scene {
         this.assignedPosition = this.assignPositionForSession();
         this.gameData = {
             gameId:this.gameId, qualtricsId:this.qualtricsId, condition:this.condition,
-            gameVersion:`parallel_terciles_${this.kind}_${this.kind==='economy'?'v22_average_example_20261123':'v4'}`,
+            gameVersion:`parallel_terciles_${this.kind}_${this.kind==='economy'?'v23_two_options_20261123':'v4'}`,
             gameStartTime:new Date().toISOString(), gameEndTime:null, totalDurationMs:null,
             initialAllocation:[...this.original], totalUnits:this.total,
             needPerPersonUnits:this.spec.threshold, dollarsPerUnit:this.kind === 'economy' ? 1000 : null,
@@ -771,7 +771,7 @@ export default class TaskScene extends Phaser.Scene {
                 : 'Which arrangement would you choose?';
         const frames=[
             ...(this.kind==='survival'?[{key:'feasibility',prompt:'If the group redistributed the food it collected, do you think there would be enough for everyone?',options:['Yes','No']}]:[]),
-            {key:'groupOutcome',prompt:this.kind==='survival'?(stage==='equal'||stage==='partial'?'Which arrangement do you think is better for the group as a whole?':'Which arrangement do you think is best for the group as a whole?'):'Which arrangement do you think is better for the country as a whole?',options:this.kind==='economy'&&stage!=='self'?[applied,original]:[applied,original,this.kind==='survival'?'Both are equally good for the group':'Both are equally good for the country']},
+            {key:'groupOutcome',prompt:this.kind==='survival'?(stage==='equal'||stage==='partial'?'Which arrangement do you think is better for the group as a whole?':'Which arrangement do you think is best for the group as a whole?'):(stage==='equal'||stage==='partial'?'If these were the only two options, which would be better for the country as a whole?':'Which arrangement do you think is better for the country as a whole?'),options:this.kind==='economy'&&stage!=='self'?[applied,original]:[applied,original,this.kind==='survival'?'Both are equally good for the group':'Both are equally good for the country']},
             {key:'personalPreference',prompt:binaryPrompt,options:[applied,original]}
         ];
         if(step>=frames.length){
