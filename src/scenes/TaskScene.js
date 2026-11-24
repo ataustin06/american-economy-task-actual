@@ -152,7 +152,7 @@ export default class TaskScene extends Phaser.Scene {
         this.assignedPosition = this.assignPositionForSession();
         this.gameData = {
             gameId:this.gameId, qualtricsId:this.qualtricsId, condition:this.condition,
-            gameVersion:`parallel_terciles_${this.kind}_${this.kind==='economy'?'v20_rule_future_20261123':'v4'}`,
+            gameVersion:`parallel_terciles_${this.kind}_${this.kind==='economy'?'v22_average_example_20261123':'v4'}`,
             gameStartTime:new Date().toISOString(), gameEndTime:null, totalDurationMs:null,
             initialAllocation:[...this.original], totalUnits:this.total,
             needPerPersonUnits:this.spec.threshold, dollarsPerUnit:this.kind === 'economy' ? 1000 : null,
@@ -332,14 +332,16 @@ export default class TaskScene extends Phaser.Scene {
     }
     showEconomyGroupAverages() {
         this.info('What the income amounts mean',
-            'People in the same income group do not all have the same income. The amount you will see next to each group is its average annual income per person.',
+            'People in the same income group do not all have the same income. The amount you will see next to each group is its average annual income per person. Even if a group’s average is $12,000, some people may have more and others may have less.',
             ()=>this.showIntro(2),'intro_group_averages');
     }
     format(value) { return this.kind === 'survival' ? `${value} pieces` : `$${(value*1000).toLocaleString()}`; }
     incomeNeedStatus(amount) {
-        const shortfall=this.spec.threshold-amount;
-        return shortfall>0?`Below basic needs by ${this.format(shortfall)}`:
-            shortfall===0?'At the basic-needs line':'Above the basic-needs line';
+        return amount<this.spec.threshold?'below needs':
+            amount===this.spec.threshold?'at the needs line':'above needs';
+    }
+    groupAverageWithNeedStatus(amount) {
+        return `${this.format(amount)} average · ${this.incomeNeedStatus(amount)}`;
     }
     count(values) { return values.filter(v=>v>=this.spec.threshold).length; }
     stageName(stage) {
@@ -620,17 +622,18 @@ export default class TaskScene extends Phaser.Scene {
             const highlighted=this.stage==='self'&&index===this.assignedPosition;
             const selected=this.selectedSource===index;
             const fill=highlighted?0xfff4df:amount>=12?0xf5faf6:0xffffff;
-            const belowNeed=this.condition==='actual'&&amount<this.spec.threshold;
+            const belowNeed=amount<this.spec.threshold;
             const card=this.keep(this.add.rectangle(box.x,box.y,box.w,box.h,fill)
                 .setStrokeStyle(selected?5:belowNeed?3:2,selected?0xf2994a:belowNeed?0x8e44ad:0x263238));
             if(movable){card.setInteractive({useHandCursor:true});card.on('pointerdown',()=>this.tapCard(index));}
             const top=box.y-box.h/2;
             const labelShift=this.condition==='actual'?10:0;
             this.text(box.x,top+(this.portrait?32:38)-labelShift,this.spec.labels[index]+(highlighted?' — YOU':''),this.portrait?28:24,box.w-20);
-            const incomeLabel=this.text(box.x,top+(this.portrait?(this.condition==='actual'?68:75):82)-labelShift,`${this.format(amount)} average`,this.portrait?27:24,box.w-20);
-            const blockCountLabel=this.condition==='actual'
-                ? this.text(box.x,top+(this.portrait?97:112)-labelShift,this.incomeNeedStatus(amount),this.portrait?23:17,box.w-20,'center',belowNeed?'#8e44ad':'#1f6f43')
-                : this.portrait?null:this.text(box.x,top+112,`${amount} blocks`,17,box.w-20,'center','#66747e');
+            // Keep the status on the existing amount line and specify that it describes the average.
+            const incomeLabel=this.text(box.x,top+(this.portrait?(this.condition==='actual'?68:75):82)-labelShift,
+                this.groupAverageWithNeedStatus(amount),this.portrait?27:19,box.w-20,'center',belowNeed?'#8e44ad':'#1f6f43');
+            const blockCountLabel=this.portrait?null:
+                this.text(box.x,top+112-labelShift,`${amount} blocks`,17,box.w-20,'center','#66747e');
             const bottom=box.y+box.h/2-bottomInset;
             const stackBlocks=[];
             for(let n=0;n<amount;n++){
@@ -649,12 +652,10 @@ export default class TaskScene extends Phaser.Scene {
                     zone.setData('wasDragged',true);
                     const units=Math.min(this.batch,amount);
                     for(let n=amount-units;n<amount;n++) stackBlocks[n].setVisible(false);
-                    incomeLabel.setText(`${this.format(amount-units)} average`);
-                    if(blockCountLabel){
-                        blockCountLabel.setText(this.condition==='actual'?this.incomeNeedStatus(amount-units):`${amount-units} blocks`);
-                        if(this.condition==='actual')blockCountLabel.setColor(amount-units<this.spec.threshold?'#8e44ad':'#1f6f43');
-                    }
-                    if(this.condition==='actual'&&!selected)card.setStrokeStyle(amount-units<this.spec.threshold?3:2,amount-units<this.spec.threshold?0x8e44ad:0x263238);
+                    incomeLabel.setText(this.groupAverageWithNeedStatus(amount-units));
+                    incomeLabel.setColor(amount-units<this.spec.threshold?'#8e44ad':'#1f6f43');
+                    if(blockCountLabel)blockCountLabel.setText(`${amount-units} blocks`);
+                    if(!selected)card.setStrokeStyle(amount-units<this.spec.threshold?3:2,amount-units<this.spec.threshold?0x8e44ad:0x263238);
                     if(!highlighted) card.setFillStyle(amount-units>=12?0xf5faf6:0xffffff);
                     const ghost=this.keep(this.add.container(pointer.worldX,pointer.worldY).setDepth(500));
                     for(let n=0;n<units;n++) ghost.add(this.add.rectangle(0,-n*step,blockWidth,blockHeight,0x86c995)
