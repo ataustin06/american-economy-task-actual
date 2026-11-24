@@ -152,7 +152,7 @@ export default class TaskScene extends Phaser.Scene {
         this.assignedPosition = this.assignPositionForSession();
         this.gameData = {
             gameId:this.gameId, qualtricsId:this.qualtricsId, condition:this.condition,
-            gameVersion:`parallel_terciles_${this.kind}_${this.kind==='economy'?'v24_personal_two_options_20261123':'v4'}`,
+            gameVersion:`parallel_terciles_${this.kind}_${this.kind==='economy'?'v25_should_case_20261123':'v4'}`,
             gameStartTime:new Date().toISOString(), gameEndTime:null, totalDurationMs:null,
             initialAllocation:[...this.original], totalUnits:this.total,
             needPerPersonUnits:this.spec.threshold, dollarsPerUnit:this.kind === 'economy' ? 1000 : null,
@@ -812,7 +812,7 @@ export default class TaskScene extends Phaser.Scene {
             },'social_contract_guarantee');
         } else {
             const choices=[{code:'support_guarantee',title:'Create a policy',detail:'The government should create a policy that guarantees that each person will have enough income to meet their basic needs.'},{code:'oppose_guarantee',title:'Do not create a policy',detail:'The government should not create a policy that guarantees that each person will have enough income to meet their basic needs.'}];
-            this.question('','Thinking about the American economy as shown in this task, SHOULD the government create a policy that guarantees each person enough income to meet their basic needs, or not?',choices,choice=>{
+            this.question('','Thinking about the American economy as shown in this task, should the government create a policy that guarantees each person enough income to meet their basic needs, or not?',choices,choice=>{
                 this.gameData.redistributionChoices.redistributive_guarantee=choice.code;
                 this.startPrinciples();
             },'redistributive_guarantee');

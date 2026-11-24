@@ -1,4 +1,4 @@
-import Start from './scenes/TaskScene.js?v=20261123-personal-two-options-v24';
+import Start from './scenes/TaskScene.js?v=20261123-should-case-v25';
 
 window.TASK_SETUP = Object.freeze({kind: 'economy', condition: 'actual'});
 
