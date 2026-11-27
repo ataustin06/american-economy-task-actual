@@ -400,7 +400,7 @@ export default class TaskScene extends Phaser.Scene {
 
     showEconomyThresholdCheck() {
         this.question('Basic-needs line',
-            'According to this task, what annual income does one person need to meet basic needs?',
+            "Going without food, housing, or needed medical care can put a person’s life at risk.\n\nAccording to this task, what annual income does one person need to meet basic needs?",
             ['$10,000','$12,000','$14,000'],choice=>{
                 if(this.gameData.thresholdCheckChoice===null){
                     this.gameData.thresholdCheckChoice=choice;
