@@ -1,4 +1,4 @@
-import Start from './scenes/TaskScene.js?v=20261127-mortality-reminder-v26';
+import Start from './scenes/TaskScene.js?v=20261127-h4-visual-followup-v1';
 
 window.TASK_SETUP = Object.freeze({kind: 'economy', condition: 'actual'});
 

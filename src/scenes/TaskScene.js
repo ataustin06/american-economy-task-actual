@@ -210,6 +210,14 @@ export default class TaskScene extends Phaser.Scene {
     }
 
     clear(screen) {
+        // The follow-up uses native, transparent buttons over the Phaser cards
+        // so keyboard and screen-reader users can choose either arrangement.
+        if (this.assignedChoiceAccessibility) {
+            window.removeEventListener('resize', this.assignedChoiceAccessibility.update);
+            this.assignedChoiceAccessibility.observer?.disconnect();
+            this.assignedChoiceAccessibility.root.remove();
+            this.assignedChoiceAccessibility = null;
+        }
         if (this.currentScreen) {
             this.gameData.screenTimings[this.currentScreen] = (this.gameData.screenTimings[this.currentScreen] || 0) + Math.max(0,performance.now()-this.currentScreenStarted);
         }
@@ -601,6 +609,9 @@ export default class TaskScene extends Phaser.Scene {
         }
     }
     economyBoard() {
+        // Preserve the submitted Task 4 board as a Back destination for the
+        // following comparison. Re-renders replace its current snapshot.
+        if(this.stage==='self') this.rememberPage(`task_${this.taskIndex+1}_${this.stage}_board`,()=>this.economyBoard());
         this.clear(`task_${this.taskIndex+1}_${this.stage}_board`);
         this.text(this.w/2,this.portrait?65:34,this.stageName(this.stage),this.portrait?36:29);
         this.text(this.w/2,this.portrait?115:78,`${this.total} blocks total • $12,000 basic-needs line`,this.portrait?25:19);
@@ -747,10 +758,117 @@ export default class TaskScene extends Phaser.Scene {
             this.gameData.selfInterestOwnChange=allocation[this.assignedPosition]-this.original[this.assignedPosition];
         }
         this.record('submit_task',{stage:this.stage,allocation});
-        if((this.kind==='economy'&&this.stage==='free')||this.stage==='self')this.beginTask(this.taskIndex+1);
+        if(this.kind==='economy'&&this.stage==='self'){
+            // A changed Task 4 allocation requires a fresh response to the
+            // follow-up; the original randomized option order remains stable.
+            delete this.gameData.redistributionChoices.assigned_position_equal_vs_original;
+            delete this.gameData.assignedPositionEqualChoice;
+            this.showAssignedPositionEqualChoice();
+        }
+        else if((this.kind==='economy'&&this.stage==='free')||this.stage==='self')this.beginTask(this.taskIndex+1);
         else this.askTaskFollowup(0);
     }
     survivalLegacyAllocation(values) {return {personA:values[2],personB:values[1],personC:values[0]};}
+
+    showAssignedPositionEqualChoice() {
+        const screen='assigned_position_equal_vs_original';
+        const order=this.questionOrders[screen] ||= shuffle(['original','equal']);
+        const positions=['lower','middle','higher'];
+        const prompt=`You are in the ${positions[this.assignedPosition]}-income group.\nIf these were the only two options, which would you choose?`;
+        const hint='Amounts are average yearly income per person. $12,000 meets basic needs.';
+        const choices={
+            original:{title:'Keep the original income distribution',values:[...this.original]},
+            equal:{title:'Divide income equally',values:[...this.equal]}
+        };
+        this.rememberPage(screen,()=>this.showAssignedPositionEqualChoice());
+        this.clear(screen);
+        this.panel();
+        this.text(this.w/2,this.portrait?160:110,prompt,this.portrait?30:27,this.w-(this.portrait?90:230));
+        this.text(this.w/2,this.portrait?270:172,hint,this.portrait?24:19,this.w-90);
+        this.gameData.answerChoiceOrders[screen]=[...order];
+        this.gameData.assignedPositionEqualChoiceOrder=[...order];
+        (this.gameData.answerChoiceOrderHistory[screen] ||= []).push([...order]);
+        this.gameData.redistributionOptionOrders[screen]=[...order];
+
+        const cards=this.portrait
+            ? [{x:this.w/2,y:520,w:660,h:390},{x:this.w/2,y:950,w:660,h:390}]
+            : [{x:330,y:430,w:580,h:430},{x:950,y:430,w:580,h:430}];
+        const max=Math.max(...this.original,...this.equal,this.spec.threshold);
+        let answered=false;
+        const choose=code=>{
+            if(answered)return;
+            answered=true;
+            this.gameData.taskResponses.self.answers[screen]=code;
+            this.gameData.redistributionChoices[screen]=code;
+            this.gameData.assignedPositionEqualChoice=code;
+            this.record('answer',{question:screen,answer:code});
+            this.beginTask(this.taskIndex+1);
+        };
+        const accessibility=[];
+        order.forEach((code,orderIndex)=>{
+            const option=choices[code], box=cards[orderIndex], top=box.y-box.h/2;
+            const previous=this.gameData.redistributionChoices[screen]===code;
+            const card=this.keep(this.add.rectangle(box.x,box.y,box.w,box.h,0xffffff)
+                .setStrokeStyle(previous?5:2,0x263238).setInteractive({useHandCursor:true}));
+            card.on('pointerdown',()=>choose(code));
+            this.text(box.x,top+33,option.title,this.portrait?28:24,box.w-32);
+            const groupWidth=(box.w-30)/3;
+            const baseline=top+308;
+            const step=135/max;
+            const barWidth=this.portrait?100:80;
+            option.values.forEach((amount,index)=>{
+                const x=box.x-box.w/2+15+groupWidth*(index+.5);
+                const role=index===this.assignedPosition;
+                this.text(x,top+80,this.spec.labels[index],this.portrait?25:20,groupWidth-8);
+                if(role)this.text(x,top+108,'YOUR GROUP',this.portrait?23:17,groupWidth-8,'center','#754b17').setFontStyle('bold');
+                this.text(x,top+142,this.format(amount),this.portrait?26:20,groupWidth-8);
+                for(let n=0;n<amount;n++) {
+                    this.keep(this.add.rectangle(x,baseline-(n+.5)*step,barWidth,Math.max(.55,step-Math.min(1,step*.16)),0x86c995));
+                }
+            });
+            this.keep(this.add.rectangle(box.x,baseline-this.spec.threshold*step,box.w-34,2,0x8e44ad));
+            this.text(box.x,top+329,'Line: $12,000',this.portrait?22:17,box.w-20,'center','#6a327d');
+            this.text(box.x,top+box.h-24,previous?'Selected':'Select this option',this.portrait?24:19,box.w-20,'center','#43515b');
+            const description=option.values.map((amount,index)=>`${this.spec.labels[index]}${index===this.assignedPosition?', your group':''}: ${this.format(amount)} per person on average`).join('; ');
+            accessibility.push({box,code,label:`${option.title}. ${description}.`});
+        });
+        this.addAssignedChoiceAccessibility(prompt+' '+hint,accessibility,choose);
+        this.showBackButton();
+    }
+
+    addAssignedChoiceAccessibility(prompt,options,choose) {
+        const root=document.createElement('div');
+        root.setAttribute('role','group');
+        root.setAttribute('aria-label',prompt.replace(/\s+/g,' '));
+        root.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:10000';
+        const buttons=options.map(option=>{
+            const button=document.createElement('button');
+            button.type='button';
+            button.setAttribute('aria-label',option.label);
+            button.style.cssText='position:fixed;pointer-events:auto;background:transparent;border:0;cursor:pointer;padding:0';
+            button.addEventListener('focus',()=>{button.style.outline='3px solid #174e8c';button.style.outlineOffset='-3px';});
+            button.addEventListener('blur',()=>{button.style.outline='none';});
+            button.addEventListener('click',()=>choose(option.code));
+            root.appendChild(button);
+            return {button,box:option.box};
+        });
+        document.body.appendChild(root);
+        const update=()=>{
+            const canvas=this.game.canvas.getBoundingClientRect();
+            const sx=canvas.width/this.w,sy=canvas.height/this.h;
+            buttons.forEach(({button,box})=>{
+                button.style.left=`${canvas.left+(box.x-box.w/2)*sx}px`;
+                button.style.top=`${canvas.top+(box.y-box.h/2)*sy}px`;
+                button.style.width=`${box.w*sx}px`;
+                button.style.height=`${box.h*sy}px`;
+            });
+        };
+        window.addEventListener('resize',update);
+        const observer=typeof ResizeObserver==='function'?new ResizeObserver(update):null;
+        observer?.observe(this.game.canvas);
+        this.assignedChoiceAccessibility={root,update,observer};
+        update();
+    }
 
     askTaskFollowup(step) {
         const stage=this.stage;
@@ -938,7 +1056,7 @@ export default class TaskScene extends Phaser.Scene {
     sendSurveyMessage(status) {
         const type=this.kind==='survival'?'survival-game-complete':'national-resource-game-complete';
         const principleAnswers=this.kind==='survival'?Object.fromEntries(SURVIVAL_PRINCIPLES.map(item=>[item.code,this.gameData[item.code]])):this.gameData.economicPrinciples;
-        const summary={condition:this.condition,gameVersion:this.gameData.gameVersion,taskOrder:this.taskOrder,assignedPosition:this.gameData.assignedPosition,taskResponses:this.gameData.taskResponses,redistributionChoices:this.gameData.redistributionChoices,economicPrincipleOrder:this.gameData.economicPrincipleOrder,economicPrinciples:principleAnswers,answerChoiceOrders:this.gameData.answerChoiceOrders,screenTimings:this.gameData.screenTimings,freeAllocationFinal:this.gameData.freeAllocationFinal,equalDivisionFinal:this.gameData.equalDivisionFinal,partialRedistributionFinal:this.gameData.partialRedistributionFinal,redistributionFeasibility:this.gameData.redistributionFeasibility,thresholdCheckChoice:this.gameData.thresholdCheckChoice,thresholdCheckPassed:this.gameData.thresholdCheckPassed,manipulationCheckChoice:this.gameData.manipulationCheckChoice,manipulationCheckPassed:this.gameData.manipulationCheckPassed};
+        const summary={condition:this.condition,gameVersion:this.gameData.gameVersion,taskOrder:this.taskOrder,assignedPosition:this.gameData.assignedPosition,assignedPositionEqualChoice:this.gameData.assignedPositionEqualChoice,assignedPositionEqualChoiceOrder:this.gameData.assignedPositionEqualChoiceOrder,taskResponses:this.gameData.taskResponses,redistributionChoices:this.gameData.redistributionChoices,economicPrincipleOrder:this.gameData.economicPrincipleOrder,economicPrinciples:principleAnswers,answerChoiceOrders:this.gameData.answerChoiceOrders,screenTimings:this.gameData.screenTimings,freeAllocationFinal:this.gameData.freeAllocationFinal,equalDivisionFinal:this.gameData.equalDivisionFinal,partialRedistributionFinal:this.gameData.partialRedistributionFinal,redistributionFeasibility:this.gameData.redistributionFeasibility,thresholdCheckChoice:this.gameData.thresholdCheckChoice,thresholdCheckPassed:this.gameData.thresholdCheckPassed,manipulationCheckChoice:this.gameData.manipulationCheckChoice,manipulationCheckPassed:this.gameData.manipulationCheckPassed};
         const msg={type,saveStatus:status,gameId:this.gameId,qualtricsId:this.qualtricsId,condition:this.condition,summary,payload:this.gameData};
         let origin='*';
         try {if(this.parentOrigin) origin=new URL(this.parentOrigin).origin;}catch(_){}
