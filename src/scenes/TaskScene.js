@@ -39,13 +39,20 @@ const SURVIVAL_PRINCIPLES = [
 const ECONOMY_PRINCIPLES = [
     {code:'responsibility', prompt:'Thinking about the American economy as shown in this task, which should receive greater priority: personal responsibility or government responsibility for meeting basic needs?', options:[{code:'shared',title:'Government responsibility',detail:'The government should take responsibility for making sure everyone can meet their basic needs.'},{code:'personal',title:'Personal responsibility',detail:'People should be primarily responsible for making sure they can meet their own basic needs.'}]},
     {code:'fairness', prompt:'Would it be fair to have a law requiring people who have more income than needed to meet basic needs to help fund assistance for people who lack enough income to meet basic needs?', options:[{code:'equity',title:'Yes, this law would be fair.'},{code:'no_equity',title:'No, this law would not be fair.'}]},
-    {code:'income_priority', prompt:"People with lower incomes have the least income and need help meeting basic needs. People with higher incomes have the most income and can contribute more in taxes to fund public spending. When deciding whether to redistribute income, whose interests should the government put first?", options:[{code:'lowest',title:'Lower-income people'},{code:'highest',title:'Higher-income people'}]},
+    {code:'income_priority', prompt:"People with lower incomes have the least income and need help meeting basic needs. People with higher incomes have the most income and can contribute more in taxes to fund public spending. When deciding whether to redistribute income, whose interests should the government put first?", options:[{code:'lowest',title:'The government should prioritize the interests of lower-income people'},{code:'highest',title:'The government should prioritize the interests of higher-income people'}]},
     {code:'time', prompt:'Should the U.S. use its resources to produce more goods and services now or prepare for future disasters?', options:[{code:'present',title:'Produce more goods and services now.'},{code:'future',title:'Prepare for future disasters.'}]},
     {code:'scope', block:'foreignAid', prompt:'Thinking about the American economy as shown in this task, should the U.S. provide foreign aid to help people in other countries meet their basic needs?', options:[{code:'international',title:'Provide foreign aid',detail:'Provide foreign aid, even if this leaves fewer resources in the United States.'},{code:'domestic',title:'Do not provide foreign aid',detail:'Do not provide foreign aid, even if this means more people in other countries cannot meet their basic needs.'}]},
     {code:'empathy', block:'foreignAid', prompt:'When deciding whether to provide foreign aid, which should weigh more heavily?', options:[{code:'guide',title:'Concern for people in other countries.'},{code:'not_guide',title:'The resources people in the United States would have to give up.'}]},
     {code:'paid_leave', prompt:'Should there be a law requiring employers to give a few days of paid time off to workers who are sick or exhausted?', options:[{code:'paid_recovery',title:'Yes, there should be a law requiring employers to give sick or exhausted workers a few days of paid time off.'},{code:'no_paid_recovery',title:'No, there should not be a law requiring employers to give sick or exhausted workers a few days of paid time off.'}]},
     {code:'strategy', prompt:'Thinking about the American economy as shown in this task, are people more likely to cooperate with one another or compete with one another?', options:[{code:'cooperate',title:'More likely to cooperate',detail:'People are more likely to work together.'},{code:'compete',title:'More likely to compete',detail:'People are more likely to compete with one another.'}]}
 ];
+
+// Format only the displayed answer, preserving the original value used for data and scoring.
+function displayAnswerLabel(value) {
+    const text=String(value).trimEnd();
+    if (/\b(?:[A-Za-z]\.){2,}$/.test(text) || /\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc)\.$/i.test(text) || /\.{2,}$/.test(text)) return text;
+    return text.replace(/\.$/,'');
+}
 
 function shuffle(items) {
     const result = [...items];
@@ -811,7 +818,7 @@ export default class TaskScene extends Phaser.Scene {
             const card=this.keep(this.add.rectangle(box.x,box.y,box.w,box.h,0xffffff)
                 .setStrokeStyle(previous?5:2,0x263238).setInteractive({useHandCursor:true}));
             card.on('pointerdown',()=>choose(code));
-            this.text(box.x,top+33,option.title,this.portrait?28:24,box.w-32);
+            this.text(box.x,top+33,displayAnswerLabel(option.title),this.portrait?28:24,box.w-32);
             const groupWidth=(box.w-30)/3;
             const baseline=top+308;
             const step=135/max;
@@ -819,6 +826,8 @@ export default class TaskScene extends Phaser.Scene {
             option.values.forEach((amount,index)=>{
                 const x=box.x-box.w/2+15+groupWidth*(index+.5);
                 const role=index===this.assignedPosition;
+                if(role) this.keep(this.add.rectangle(x,top+185,groupWidth-10,260,0xffffff,0)
+                    .setStrokeStyle(4,0x754b17).setName('assigned-position-highlight'));
                 this.text(x,top+80,this.spec.labels[index],this.portrait?25:20,groupWidth-8);
                 if(role)this.text(x,top+108,'YOUR GROUP',this.portrait?23:17,groupWidth-8,'center','#754b17').setFontStyle('bold');
                 this.text(x,top+142,this.format(amount),this.portrait?26:20,groupWidth-8);
@@ -830,7 +839,7 @@ export default class TaskScene extends Phaser.Scene {
             this.text(box.x,top+329,'Line: $12,000',this.portrait?22:17,box.w-20,'center','#6a327d');
             this.text(box.x,top+box.h-24,previous?'Selected':'Select this option',this.portrait?24:19,box.w-20,'center','#43515b');
             const description=option.values.map((amount,index)=>`${this.spec.labels[index]}${index===this.assignedPosition?', your group':''}: ${this.format(amount)} per person on average`).join('; ');
-            accessibility.push({box,code,label:`${option.title}. ${description}.`});
+            accessibility.push({box,code,label:displayAnswerLabel(`${option.title}. ${description}.`)});
         });
         this.addAssignedChoiceAccessibility(prompt+' '+hint,accessibility,choose);
         this.showBackButton();
@@ -947,7 +956,10 @@ export default class TaskScene extends Phaser.Scene {
         this.text(this.w/2,this.portrait?345:235,prompt,prompt.length>155?(this.portrait?29:24):(this.portrait?33:28),this.w-95);
         this.gameData.answerChoiceOrders[screen]=order;
         (this.gameData.answerChoiceOrderHistory[screen] ||= []).push(order);
-        const labels=order.map(o=>typeof o==='string'?o:(o.detail||o.title));
+        const labels=order.map(o=>{
+            const label=typeof o==='string'?o:(o.detail||o.title);
+            return this.kind==='economy'?displayAnswerLabel(label):label;
+        });
         const longOptions=order.length===2&&labels.some(label=>label.length>75);
         const answerWidth=this.w-(this.portrait?90:220);
         const answerHeight=longOptions?(this.portrait?210:120):(this.portrait?110:78);
